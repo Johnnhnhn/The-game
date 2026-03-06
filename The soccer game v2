@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recess Soccer 2k26</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Bungee&family=Press+Start+2P&display=swap');
+
+        :root {
+            --p1-color: #3b82f6;
+            --p2-color: #ef4444;
+            --pitch-green: #2d5a27;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: #020617;
+            color: #f8fafc;
+            overflow: hidden;
+            margin: 0;
+            height: 100vh;
+        }
+
+        .bungee { font-family: 'Bungee', cursive; }
+        .pixel { font-family: 'Press Start 2P', cursive; }
+
+        .screen {
+            display: none;
+            height: 100vh;
+            width: 100vw;
+            padding: 1.5rem;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto;
+        }
+
+        .screen.active { display: flex; }
+
+        /* Classic Scouting Card Styles */
+        .player-card {
+            background-color: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 1.5rem;
+            padding: 1.25rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .player-card:hover:not(.selected) {
+            transform: translateY(-8px);
+            border-color: #3b82f6;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .player-card.selected {
+            opacity: 0.2;
+            filter: grayscale(1);
+            cursor: not-allowed;
+        }
+
+        .rating-badge {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            background: #fbbf24;
+            color: #000;
+            font-weight: 900;
+            padding: 0.2rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            z-index: 10;
+        }
+
+        .avatar-placeholder {
+            width: 100%;
+            aspect-ratio: 1.2;
+            background: linear-gradient(135deg, #334155 0%, #0f172a 100%);
+            border-radius: 1rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Bungee', cursive;
+            font-size: 2.5rem;
+            color: rgba(255,255,255,0.1);
+        }
+
+        #game-canvas {
+            image-rendering: pixelated;
+            background-color: var(--pitch-green);
+            border: 4px solid #1a3a16;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            max-width: 95vw;
+            max-height: 60vh;
+        }
+
+        .log-box {
+            height: 80px;
+            width: 100%;
+            max-width: 800px;
+            background: rgba(0,0,0,0.8);
+            border: 2px solid #334155;
+            padding: 10px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 10px;
+            color: #fbbf24;
+            overflow-y: hidden;
+            margin-top: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+            padding: 1rem 2.5rem;
+            border-radius: 9999px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SCREEN 1: SPLASH -->
+    <div id="screen-splash" class="screen active">
+        <h1 class="bungee text-6xl md:text-8xl mb-8 text-center leading-none">RECESS<br>SOCCER <span class="text-blue-500">2K26</span></h1>
+        <button onclick="goToDraft()" class="btn-primary text-xl">Kick Off Draft</button>
+    </div>
+
+    <!-- SCREEN 2: DRAFT -->
+    <div id="screen-draft" class="screen bg-slate-950 pt-16">
+        <div class="text-center mb-6">
+            <h2 class="pixel text-lg mb-2 text-white" id="draft-turn-label">PLAYER 1: SELECT YOUR STAR</h2>
+            <p class="text-slate-400 text-sm">Choose 4 players to build your custom squad</p>
+        </div>
+        
+        <div id="draft-pool" class="grid grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl w-full px-4 mb-8">
+            <!-- Cards injected by JS -->
+        </div>
+
+        <div class="mt-4 flex gap-12 items-center bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+            <div class="flex items-center gap-3">
+                <div class="w-3 h-3 rounded-full bg-blue-500"></div>
+                <div class="pixel text-[10px] text-blue-400 uppercase tracking-widest">P1 TEAM: <span id="p1-count">0</span>/4</div>
+            </div>
+            <div class="w-px h-6 bg-slate-700"></div>
+            <div class="flex items-center gap-3">
+                <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                <div class="pixel text-[10px] text-red-400 uppercase tracking-widest">P2 TEAM: <span id="p2-count">0</span>/4</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCREEN 3: PREVIEW -->
+    <div id="screen-preview" class="screen bg-slate-950">
+        <h2 class="bungee text-5xl mb-12 text-center">MATCH PREVIEW</h2>
+        <div class="flex flex-col md:flex-row gap-12 items-center mb-16">
+            <div class="bg-blue-900/10 p-8 border-2 border-blue-500/50 rounded-3xl w-72 text-center backdrop-blur-sm">
+                <div class="pixel text-blue-400 mb-6 text-xs tracking-tighter">SQUAD ONE</div>
+                <div id="p1-avg-stats" class="space-y-3 text-left text-[10px] pixel leading-relaxed opacity-80"></div>
+                <div class="mt-8 pt-6 border-t border-blue-500/20">
+                    <div id="p1-overall" class="text-4xl font-black text-blue-400 bungee">0</div>
+                </div>
+            </div>
+            <div class="bungee text-4xl opacity-20 italic">VS</div>
+            <div class="bg-red-900/10 p-8 border-2 border-red-500/50 rounded-3xl w-72 text-center backdrop-blur-sm">
+                <div class="pixel text-red-400 mb-6 text-xs tracking-tighter">SQUAD TWO</div>
+                <div id="p2-avg-stats" class="space-y-3 text-left text-[10px] pixel leading-relaxed opacity-80"></div>
+                <div class="mt-8 pt-6 border-t border-red-500/20">
+                    <div id="p2-overall" class="text-4xl font-black text-red-400 bungee">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="flex gap-4">
+            <button onclick="startMatch('blitz')" class="btn-primary bg-amber-600 hover:bg-amber-500">2 Min Blitz</button>
+            <button onclick="startMatch('goals')" class="btn-primary">First to 5 Goals</button>
+        </div>
+    </div>
+
+    <!-- SCREEN 4: MATCH -->
+    <div id="screen-match" class="screen bg-black">
+        <div class="flex justify-between w-full max-w-4xl mb-4 px-4">
+            <div class="flex flex-col items-start">
+                <span class="pixel text-[8px] text-blue-400">PLAYER 1</span>
+                <span id="score-p1" class="pixel text-2xl text-blue-400">0</span>
+            </div>
+            <div class="flex flex-col items-center">
+                <div id="match-timer" class="pixel text-[12px] text-amber-400 mb-1">02:00</div>
+                <div id="game-status" class="pixel text-[8px] text-white/50 tracking-widest">LIVE ACTION</div>
+            </div>
+            <div class="flex flex-col items-end">
+                <span class="pixel text-[8px] text-red-400">PLAYER 2</span>
+                <span id="score-p2" class="pixel text-2xl text-red-400">0</span>
+            </div>
+        </div>
+        <canvas id="game-canvas" width="800" height="500"></canvas>
+        <div class="flex flex-wrap justify-center gap-4 mt-6">
+            <div class="bg-white/5 border border-white/10 px-4 py-2 rounded-lg text-[8px] pixel"><span class="text-white font-bold">[WASD]</span> MOVE</div>
+            <div class="bg-white/5 border border-white/10 px-4 py-2 rounded-lg text-[8px] pixel"><span class="text-white font-bold">[SPACE]</span> PASS</div>
+            <div class="bg-white/5 border border-white/10 px-4 py-2 rounded-lg text-[8px] pixel"><span class="text-white font-bold">[S]</span> SHOOT</div>
+        </div>
+        <div id="game-log" class="log-box"></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const logBox = document.getElementById('game-log');
+
+        const playersData = [
+            { id: 0, name: "Finn", speed: 6, agility: 9, accuracy: 6, passing: 7, defense: 6 },
+            { id: 1, name: "Morgan", speed: 10, agility: 3, accuracy: 5, passing: 5, defense: 9 },
+            { id: 2, name: "James", speed: 8, agility: 6, accuracy: 6, passing: 6, defense: 7 },
+            { id: 3, name: "Jacob", speed: 9, agility: 8, accuracy: 10, passing: 10, defense: 7 },
+            { id: 4, name: "Zach", speed: 9, agility: 7, accuracy: 10, passing: 9, defense: 10 },
+            { id: 5, name: "Gabe", speed: 6, agility: 4, accuracy: 5, passing: 8, defense: 10 },
+            { id: 6, name: "Walker", speed: 8, agility: 6, accuracy: 6, passing: 7, defense: 4 },
+            { id: 7, name: "Kolbe", speed: 9, agility: 9, accuracy: 7, passing: 8, defense: 8 }
+        ];
+
+        let p1TeamIds = [], p2TeamIds = [];
+        let draftTurn = 1;
+        let matchMode = 'blitz';
+        let timeLeft = 120;
+        let scoreP1 = 0, scoreP2 = 0;
+        let possessionTeam = 1;
+        let activePlayer = null;
+        let gameState = 'waiting';
+        let timerInterval = null;
+        const keys = {};
+
+        function addLog(msg) {
+            logBox.innerHTML = `> ${msg}<br>` + logBox.innerHTML;
+        }
+
+        function goToDraft() {
+            document.getElementById('screen-splash').classList.remove('active');
+            document.getElementById('screen-draft').classList.add('active');
+            renderDraftPool();
+        }
+
+        function renderDraftPool() {
+            const pool = document.getElementById('draft-pool');
+            pool.innerHTML = '';
+            playersData.forEach(p => {
+                const isSelected = p1TeamIds.includes(p.id) || p2TeamIds.includes(p.id);
+                const card = document.createElement('div');
+                card.className = `player-card ${isSelected ? 'selected' : ''}`;
+                const ovr = Math.round((p.speed + p.agility + p.accuracy + p.passing + p.defense) / 5 * 10);
+                card.onclick = () => selectPlayer(p.id);
+                card.innerHTML = `
+                    <div class="rating-badge">${ovr}</div>
+                    <div class="avatar-placeholder">${p.name[0]}</div>
+                    <div class="bungee text-base mb-3 text-white">${p.name}</div>
+                    <div class="space-y-1 text-[9px] uppercase font-bold tracking-wider">
+                        <div class="flex justify-between items-center"><span class="opacity-40">Speed</span> <span class="text-amber-400">${p.speed}</span></div>
+                        <div class="flex justify-between items-center"><span class="opacity-40">Agility</span> <span class="text-amber-400">${p.agility}</span></div>
+                        <div class="flex justify-between items-center"><span class="opacity-40">Accuracy</span> <span class="text-amber-400">${p.accuracy}</span></div>
+                        <div class="flex justify-between items-center"><span class="opacity-40">Passing</span> <span class="text-amber-400">${p.passing}</span></div>
+                        <div class="flex justify-between items-center"><span class="opacity-40">Defense</span> <span class="text-amber-400">${p.defense}</span></div>
+                    </div>
+                `;
+                pool.appendChild(card);
+            });
+        }
+
+        function selectPlayer(id) {
+            if (p1TeamIds.includes(id) || p2TeamIds.includes(id)) return;
+            if (draftTurn === 1) { p1TeamIds.push(id); draftTurn = 2; } 
+            else { p2TeamIds.push(id); draftTurn = 1; }
+            document.getElementById('p1-count').innerText = p1TeamIds.length;
+            document.getElementById('p2-count').innerText = p2TeamIds.length;
+            document.getElementById('draft-turn-label').innerText = `PLAYER ${draftTurn}: SELECT YOUR STAR`;
+            renderDraftPool();
+            if (p1TeamIds.length + p2TeamIds.length === 8) setTimeout(showMatchPreview, 500);
+        }
+
+        function showMatchPreview() {
+            const calculateAverages = (ids) => {
+                const team = ids.map(id => playersData[id]);
+                const stats = ['speed', 'agility', 'accuracy', 'passing', 'defense'];
+                const averages = {};
+                let sumTotal = 0;
+                stats.forEach(s => {
+                    const avg = team.reduce((acc, p) => acc + p[s], 0) / 4;
+                    averages[s] = avg.toFixed(1);
+                    sumTotal += avg;
+                });
+                return { averages, overall: (sumTotal / 5).toFixed(1) };
+            };
+            const p1 = calculateAverages(p1TeamIds);
+            const p2 = calculateAverages(p2TeamIds);
+            const renderStats = (data, targetId) => {
+                document.getElementById(targetId).innerHTML = `
+                    <div class="flex justify-between">SPD <span>${data.averages.speed}</span></div>
+                    <div class="flex justify-between">AGI <span>${data.averages.agility}</span></div>
+                    <div class="flex justify-between">ACC <span>${data.averages.accuracy}</span></div>
+                    <div class="flex justify-between">PAS <span>${data.averages.passing}</span></div>
+                    <div class="flex justify-between">DEF <span>${data.averages.defense}</span></div>`;
+            };
+            renderStats(p1, 'p1-avg-stats'); renderStats(p2, 'p2-avg-stats');
+            document.getElementById('p1-overall').innerText = p1.overall;
+            document.getElementById('p2-overall').innerText = p2.overall;
+            document.getElementById('screen-draft').classList.remove('active');
+            document.getElementById('screen-preview').classList.add('active');
+        }
+
+        let p1Squad = [], p2Squad = [];
+        let ball = { x: 400, y: 250, vx: 0, vy: 0, status: 'held', targetPlayer: null, passerPassing: 0 };
+        let goalies = { 
+            1: { x: 10, y: 250, h: 60, color: "#fbbf24" }, 
+            2: { x: 782, y: 250, h: 60, color: "#fbbf24" } 
+        };
+
+        function startMatch(mode) {
+            matchMode = mode; timeLeft = 120; scoreP1 = 0; scoreP2 = 0; gameState = 'playing';
+            p1Squad = p1TeamIds.map((id, i) => ({ ...playersData[id], x: 200, y: 100 + (i * 100), team: 1, homeX: 200, homeY: 100 + (i * 100) }));
+            p2Squad = p2TeamIds.map((id, i) => ({ ...playersData[id], x: 600, y: 100 + (i * 100), team: 2, homeX: 600, homeY: 100 + (i * 100) }));
+            document.getElementById('screen-preview').classList.remove('active');
+            document.getElementById('screen-match').classList.add('active');
+            resetPossession(1);
+            if(mode === 'blitz') startTimer();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function startTimer() {
+            if(timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (gameState === 'playing' || gameState === 'paused') {
+                    timeLeft--;
+                    const m = Math.floor(timeLeft / 60); const s = timeLeft % 60;
+                    document.getElementById('match-timer').innerText = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+                    if (timeLeft <= 0) { clearInterval(timerInterval); endGame(); }
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            gameState = 'over';
+            const winner = scoreP1 > scoreP2 ? "PLAYER 1 WINS!" : scoreP2 > scoreP1 ? "PLAYER 2 WINS!" : "IT'S A DRAW!";
+            addLog(`FULL TIME. ${winner}`);
+            alert(winner);
+            location.reload();
+        }
+
+        function resetPossession(teamNum) {
+            possessionTeam = teamNum;
+            const team = teamNum === 1 ? p1Squad : p2Squad;
+            activePlayer = team[Math.floor(Math.random() * 4)];
+            ball.status = 'held';
+            ball.x = activePlayer.x; ball.y = activePlayer.y;
+            ball.vx = 0; ball.vy = 0;
+            addLog(`${activePlayer.name.toUpperCase()} HAS THE BALL.`);
+        }
+
+        window.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (gameState !== 'playing' || ball.status !== 'held') return;
+            if (e.code === 'Space') handlePass();
+            if (e.code === 'KeyS') handleShoot();
+        });
+        window.addEventListener('keyup', e => keys[e.code] = false);
+
+        function handlePass() {
+            const team = possessionTeam === 1 ? p1Squad : p2Squad;
+            let closest = null, minDist = Infinity;
+            team.forEach(p => {
+                if (p === activePlayer) return;
+                let d = Math.hypot(p.x - activePlayer.x, p.y - activePlayer.y);
+                if (d < minDist) { minDist = d; closest = p; }
+            });
+            if (closest) {
+                ball.status = 'travelling'; ball.targetPlayer = closest;
+                ball.passerPassing = activePlayer.passing;
+                const angle = Math.atan2(closest.y - ball.y, closest.x - ball.x);
+                ball.vx = Math.cos(angle) * 5; ball.vy = Math.sin(angle) * 5;
+            }
+        }
+
+        function handleShoot() {
+            ball.status = 'travelling'; ball.targetPlayer = null;
+            const goalX = possessionTeam === 1 ? 800 : 0;
+            const angle = Math.atan2(250 - ball.y, goalX - ball.x);
+            ball.vx = Math.cos(angle) * 7; ball.vy = Math.sin(angle) * 7;
+        }
+
+        function update() {
+            if (ball.status === 'held') {
+                const moveSpeed = (1 + activePlayer.speed / 8) * 0.4;
+                if (keys['KeyW'] || keys['ArrowUp']) activePlayer.y -= moveSpeed;
+                if (keys['KeyS'] || keys['ArrowDown']) activePlayer.y += moveSpeed;
+                if (keys['KeyA'] || keys['ArrowLeft']) activePlayer.x -= moveSpeed;
+                if (keys['KeyD'] || keys['ArrowRight']) activePlayer.x += moveSpeed;
+                activePlayer.x = Math.max(10, Math.min(790, activePlayer.x));
+                activePlayer.y = Math.max(10, Math.min(490, activePlayer.y));
+                ball.x = activePlayer.x + (possessionTeam === 1 ? 15 : -15); ball.y = activePlayer.y;
+
+                const opps = possessionTeam === 1 ? p2Squad : p1Squad;
+                opps.forEach(o => {
+                    if(Math.hypot(o.x - activePlayer.x, o.y - activePlayer.y) < 30) {
+                        if(Math.random() < o.defense / 200) {
+                            addLog(`${o.name.toUpperCase()} STRIPS IT!`);
+                            activePlayer = o; possessionTeam = o.team;
+                        }
+                    }
+                });
+            } else if (ball.status === 'travelling') {
+                ball.x += ball.vx; ball.y += ball.vy;
+
+                // INSTANT OUT OF BOUNDS TRIGGER
+                if (ball.x < 0 || ball.x > 800 || ball.y < 0 || ball.y > 500) {
+                    if (ball.y > 200 && ball.y < 300 && (ball.x < 10 || ball.x > 790)) {
+                        score();
+                    } else {
+                        addLog("OUT OF BOUNDS! POSSESSION CHANGE.");
+                        resetPossession(possessionTeam === 1 ? 2 : 1);
+                    }
+                }
+
+                const opps = possessionTeam === 1 ? p2Squad : p1Squad;
+                opps.forEach(o => {
+                    if(Math.hypot(o.x - ball.x, o.y - ball.y) < 25) {
+                        if(Math.random() < (o.defense / 15) * (1 - ball.passerPassing / 11)) {
+                            addLog(`STEAL BY ${o.name.toUpperCase()}!`);
+                            activePlayer = o; possessionTeam = o.team; ball.status = 'held';
+                        }
+                    }
+                });
+
+                if (ball.targetPlayer && Math.hypot(ball.targetPlayer.x - ball.x, ball.targetPlayer.y - ball.y) < 15) {
+                    activePlayer = ball.targetPlayer; ball.status = 'held';
+                }
+            }
+
+            [...p1Squad, ...p2Squad].forEach(p => {
+                if(p === activePlayer) return;
+                const agi = p.agility / 10;
+                const tx = (p.team === possessionTeam) ? (p.team === 1 ? 700 : 100) : (p.homeX);
+                p.x += (tx - p.x) * 0.003 * agi; p.y += (p.homeY + Math.sin(Date.now()/1000)*20 - p.y) * 0.003 * agi;
+            });
+
+            Object.values(goalies).forEach(g => g.y += (Math.max(210, Math.min(290, ball.y)) - g.y) * 0.05);
+        }
+
+        function score() {
+            const isLong = (possessionTeam === 1 && activePlayer.x < 400) || (possessionTeam === 2 && activePlayer.x > 400);
+            if (Math.random() < (isLong ? 0.05 : (activePlayer.accuracy / 12))) {
+                if(possessionTeam === 1) scoreP1++; else scoreP2++;
+                document.getElementById('score-p1').innerText = scoreP1;
+                document.getElementById('score-p2').innerText = scoreP2;
+                addLog("GOAL!!!!");
+                if (matchMode === 'goals' && (scoreP1 >= 5 || scoreP2 >= 5)) endGame();
+                else { gameState = 'paused'; setTimeout(() => { resetField(); gameState = 'playing'; }, 1000); }
+            } else {
+                addLog("GOALIE SAVES IT!");
+                ball.vx *= -0.5;
+                setTimeout(() => resetPossession(possessionTeam === 1 ? 2 : 1), 500);
+            }
+            ball.status = 'blocked';
+        }
+
+        function resetField() {
+            p1Squad.forEach(p => { p.x = p.homeX; p.y = p.homeY; });
+            p2Squad.forEach(p => { p.x = p.homeX; p.y = p.homeY; });
+            resetPossession(1);
+        }
+
+        function gameLoop() {
+            if (gameState === 'playing' || gameState === 'paused' || gameState === 'over') {
+                ctx.clearRect(0,0,800,500);
+                drawPitch();
+                if(gameState === 'playing') update();
+                [...p1Squad, ...p2Squad].forEach(p => {
+                    ctx.fillStyle = p.team === 1 ? "#3b82f6" : "#ef4444";
+                    ctx.fillRect(p.x - 12, p.y - 12, 24, 24);
+                    ctx.save();
+                    ctx.font = "10px 'Press Start 2P'"; ctx.textAlign = "center";
+                    ctx.strokeStyle = "black"; ctx.lineWidth = 3;
+                    ctx.strokeText(p.name.toUpperCase(), p.x, p.y - 25);
+                    ctx.fillStyle = "white"; ctx.fillText(p.name.toUpperCase(), p.x, p.y - 25);
+                    ctx.restore();
+                });
+                drawBall();
+            }
+            requestAnimationFrame(gameLoop);
+        }
+
+        function drawPitch() {
+            ctx.fillStyle = '#2d5a27'; ctx.fillRect(0,0,800,500);
+            ctx.strokeStyle = 'white'; ctx.lineWidth = 2;
+            ctx.strokeRect(10,10,780,480); ctx.strokeRect(0,200,10,100); ctx.strokeRect(790,200,10,100);
+            ctx.beginPath(); ctx.moveTo(400,10); ctx.lineTo(400,490); ctx.stroke();
+            Object.values(goalies).forEach(g => { ctx.fillStyle = g.color; ctx.fillRect(g.x, g.y - 30, 8, 60); });
+        }
+
+        function drawBall() {
+            ctx.fillStyle = "white"; ctx.beginPath(); ctx.arc(ball.x, ball.y, 8, 0, Math.PI*2); ctx.fill();
+        }
+    </script>
+</body>
+</html>
