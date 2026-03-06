@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>North Pole Escape</title>
+    <style>
+        :root {
+            --bg-color: #050505;
+            --text-color: #e0e0e0;
+            --accent-color: #8b0000;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+
+
+           background-color: var(--bg-color);
+            font-family: 'Courier New', Courier, monospace;
+            color: var(--text-color);
+            user-select: none;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            display: block;
+            background: #ffffff;
+
+
+           box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            cursor: none;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .stats {
+            font-size: 1.1rem;
+            text-shadow: 2px 2px 4px #000;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+            color: #d1d1d1;
+        }
+
+
+
+       #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            text-align: center;
+            padding: 20px;
+        }
+
+        h1 {
+            color: var(--accent-color);
+            font-size: 3.5rem;
+
+
+           margin-bottom: 10px;
+            letter-spacing: 8px;
+            text-transform: uppercase;
+            text-shadow: 0 0 20px rgba(139, 0, 0, 0.8);
+        }
+
+        p {
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+            max-width: 600px;
+            line-height: 1.6;
+            color: #aaa;
+        }
+
+        .btn {
+            background: transparent;
+            border: 1px solid var(--accent-color);
+            color: var(--text-color);
+            padding: 15px 45px;
+
+
+           font-size: 1.3rem;
+            cursor: pointer;
+            transition: all 0.4s;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        .btn:hover {
+            background: var(--accent-color);
+            color: white;
+            box-shadow: 0 0 30px var(--accent-color);
+        }
+
+        #message-box {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+
+
+           max-width: 800px;
+            background: rgba(10, 0, 0, 0.9);
+            border-left: 5px solid #8b0000;
+            padding: 25px;
+            display: none;
+            color: #ff3333;
+            font-weight: bold;
+            font-size: 1.2rem;
+            animation: glitchFade 0.3s;
+            text-align: center;
+            z-index: 15;
+            min-height: 70px;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px rgba(0,0,0,1);
+        }
+
+        #hiding-indicator {
+            position: absolute;
+
+
+           top: 20px;
+            right: 20px;
+            color: #1b5e20;
+            font-weight: bold;
+            display: none;
+            text-shadow: 0 0 10px #1b5e20;
+            z-index: 5;
+        }
+
+        #shoe-timer {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: #b8860b;
+            font-weight: bold;
+            display: none;
+            text-shadow: 0 0 10px #000;
+            z-index: 5;
+        }
+
+
+
+       #jumpscare-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 100;
+            display: none;
+            background: black;
+        }
+
+        .shake {
+            animation: shakeScreen 0.04s infinite;
+        }
+
+        @keyframes shakeScreen {
+            0% { transform: translate(15px, 15px); }
+            25% { transform: translate(-15px, -15px); }
+            50% { transform: translate(-15px, 15px); }
+
+
+           75% { transform: translate(15px, -15px); }
+            100% { transform: translate(0, 0); }
+        }
+
+        @keyframes glitchFade {
+            0% { opacity: 0; transform: translateX(-52%) scaleY(0.1); }
+            50% { opacity: 0.8; transform: translateX(-49%) scaleY(1.2); }
+            100% { opacity: 1; transform: translateX(-50%) scaleY(1); }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    <canvas id="jumpscare-overlay"></canvas>
+    
+    <div id="ui-layer">
+        <div class="stats">Harvest Target: Finn (5'5", Curly Specimen)</div>
+
+
+       <div class="stats">Distance: <span id="distance">0</span>m</div>
+        <div class="stats">Suffering Time: <span id="timer">0</span>s</div>
+    </div>
+
+    <div id="hiding-indicator">STILL</div>
+    <div id="shoe-timer">GHOST STEPS: <span id="shoe-val">0</span>s</div>
+
+    <div id="overlay">
+        <h1 id="overlay-title">It is time for the North pole Finn.</h1>
+        <p id="overlay-desc">The gears are grinding for Maggie and Spencer. James and Gabe are being unspooled. Morgan is in the crate. Anna is calling from the black. RUN.</p>
+        <button id="start-btn" class="btn" onclick="startGame()">ESCAPE</button>
+        <p style="margin-top: 20px; font-size: 0.8rem; opacity: 0.5;">WASD to move. Shift to Sprint. Drifts hide the trail.</p>
+    </div>
+
+    <div id="message-box"></div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+
+
+   const ctx = canvas.getContext('2d');
+    const jCanvas = document.getElementById('jumpscare-overlay');
+    const jCtx = jCanvas.getContext('2d');
+    
+    const distanceEl = document.getElementById('distance');
+    const timerEl = document.getElementById('timer');
+    const shoeValEl = document.getElementById('shoe-val');
+    const shoeTimerContainer = document.getElementById('shoe-timer');
+    const overlay = document.getElementById('overlay');
+    const overlayTitle = document.getElementById('overlay-title');
+    const overlayDesc = document.getElementById('overlay-desc');
+    const startBtn = document.getElementById('start-btn');
+    const messageBox = document.getElementById('message-box');
+    const hidingIndicator = document.getElementById('hiding-indicator');
+    const gameContainer = document.getElementById('game-container');
+
+    let gameActive = false;
+    let startTime = 0;
+    let lastFootprintTime = 0;
+
+
+   let isMagicBlackout = false;
+    let lastHeartbeatTime = 0;
+    let lastDialogueTime = 0;
+    let lastBlackoutTime = 0;
+
+    // --- AUDIO SYSTEM ---
+    let audioCtx = null;
+    let ambientDrone = null;
+    let scaryMusic = null;
+
+    function initAudio() {
+        if (audioCtx) return;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        createFactoryDrone();
+        createScaryMusic();
+    }
+
+    function createFactoryDrone() {
+        const bufferSize = 2 * audioCtx.sampleRate;
+
+
+       const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+        
+        const whiteNoise = audioCtx.createBufferSource();
+        whiteNoise.buffer = noiseBuffer;
+        whiteNoise.loop = true;
+
+        const lowPass = audioCtx.createBiquadFilter();
+        lowPass.type = 'lowpass';
+        lowPass.frequency.setValueAtTime(120, audioCtx.currentTime);
+        lowPass.Q.value = 8;
+
+        const mainDrone = audioCtx.createOscillator();
+        mainDrone.type = 'sawtooth';
+        mainDrone.frequency.setValueAtTime(45, audioCtx.currentTime); // Deep mechanical hum
+
+        const resonantOsc = audioCtx.createOscillator();
+        resonantOsc.type = 'sine';
+
+
+       resonantOsc.frequency.setValueAtTime(90, audioCtx.currentTime);
+
+        const lfo = audioCtx.createOscillator();
+        lfo.type = 'sine';
+        lfo.frequency.setValueAtTime(0.08, audioCtx.currentTime); // Very slow pressure shift
+        
+        const lfoGain = audioCtx.createGain();
+        lfoGain.gain.setValueAtTime(30, audioCtx.currentTime);
+        
+        const gainNode = audioCtx.createGain();
+        gainNode.gain.value = 0.15;
+
+        lfo.connect(lfoGain);
+        lfoGain.connect(mainDrone.frequency);
+        
+        whiteNoise.connect(lowPass);
+        mainDrone.connect(lowPass);
+        resonantOsc.connect(lowPass);
+        
+
+
+       lowPass.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        whiteNoise.start();
+        mainDrone.start();
+        resonantOsc.start();
+        lfo.start();
+        
+        ambientDrone = { source: whiteNoise, gain: gainNode, lfo: lfo, osc: mainDrone };
+    }
+
+    function createScaryMusic() {
+        const musicGain = audioCtx.createGain();
+        musicGain.gain.setValueAtTime(0, audioCtx.currentTime);
+        musicGain.connect(audioCtx.destination);
+        const droneOsc = audioCtx.createOscillator();
+        droneOsc.type = 'sawtooth';
+        droneOsc.frequency.setValueAtTime(40, audioCtx.currentTime);
+        const lfo = audioCtx.createOscillator();
+
+
+       const lfoGain = audioCtx.createGain();
+        lfo.frequency.setValueAtTime(0.3, audioCtx.currentTime);
+        lfoGain.gain.setValueAtTime(1.5, audioCtx.currentTime);
+        lfo.connect(lfoGain);
+        lfoGain.connect(droneOsc.frequency);
+        lfo.start();
+        droneOsc.connect(musicGain);
+        droneOsc.start();
+        const playGhostNote = () => {
+            if (!gameActive) return;
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            const frequencies = [82.41, 87.31, 123.47];
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(frequencies[Math.floor(Math.random() * frequencies.length)], audioCtx.currentTime);
+            g.gain.setValueAtTime(0, audioCtx.currentTime);
+            g.gain.linearRampToValueAtTime(0.05, audioCtx.currentTime + 2.5);
+            g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 5);
+            osc.connect(g);
+
+
+           g.connect(musicGain);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 5);
+            setTimeout(playGhostNote, 4000 + Math.random() * 6000);
+        };
+        scaryMusic = { gain: musicGain, startGhostly: playGhostNote };
+    }
+
+    function playHeartbeat(volume) {
+        if (!audioCtx) return;
+        const playThump = (delay) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(50, audioCtx.currentTime + delay);
+            osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + delay + 0.2);
+            gain.gain.setValueAtTime(0, audioCtx.currentTime + delay);
+            gain.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + delay + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + delay + 0.18);
+
+
+           osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(audioCtx.currentTime + delay);
+            osc.stop(audioCtx.currentTime + delay + 0.2);
+        };
+        playThump(0);
+        playThump(0.18);
+    }
+
+    function playFootstep() {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(100 + Math.random() * 40, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+        osc.connect(gain);
+
+
+       gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+    }
+
+    function playPowerUpSound() {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(110, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(55, audioCtx.currentTime + 0.5);
+        g.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+        osc.connect(g);
+        g.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.5);
+    }
+
+
+
+   function playMagicSound() {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(30, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(5, audioCtx.currentTime + 4);
+        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 1);
+        gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 4);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 4);
+    }
+
+    function playJumpscareSound() {
+        if (!audioCtx) return;
+        if (scaryMusic) scaryMusic.gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+
+
+       const noise = audioCtx.createBufferSource();
+        const bufferSize = audioCtx.sampleRate * 1.5;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for(let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.2);
+        noise.buffer = buffer; noise.connect(gain); gain.connect(audioCtx.destination); noise.start();
+
+        const lowOsc = audioCtx.createOscillator();
+        lowOsc.type = 'sawtooth';
+        lowOsc.frequency.setValueAtTime(40, audioCtx.currentTime);
+        lowOsc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 1.0);
+        const lowGain = audioCtx.createGain();
+        lowGain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+        lowGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.0);
+        lowOsc.connect(lowGain); lowGain.connect(audioCtx.destination); lowOsc.start(); lowOsc.stop(audioCtx.currentTime + 1.0);
+    }
+
+
+
+   // --- 100 GROTESQUE, DARK, AND SARCASTIC LINES ---
+    const chaseDialogue = [
+        "Hohoho! The workshop gears were hungry today, Finn. James and Gabe were just the appetizers. Wet and crunchy! Hohoho!",
+        "Why is James so quiet? Because I had to spool his intestines onto a toy-truck axle! Grotesque, isn't it? Hohoho!",
+        "Gabe thought his height made him a man. It just made for more... surplus meat in the furnace! Hohoho!",
+        "Morgan is a brave little boy. He didn't even scream until the hook found his ribs. Sarcastic kid! Hohoho!",
+        "Anna is waiting for a hero, Finn. Too bad heroes don't survive the meat-hook. Her skin is so soft! Hohoho!",
+        "Maggie and Spencer are setting a plate for a ghost tonight. They'll have a collection soon! Hohoho!",
+        "What's red, white, and unspooled on a workshop floor? Your friend Gabe! Hohoho!",
+        "Spencer's garage tools were a good start, but my meat-saws are industrial grade. Hohoho!",
+        "Knock knock. Who's there? Not James! His lungs are currently being used as bellows! Hohoho!",
+        "Morgan fits so perfectly in the small crates. I didn't even have to break too many of his boyish bones! Hohoho!",
+        "Anna's ribbon is stained with the red that's leaking out of Maggie's front door! Hohoho!",
+        "Your friend James thought he could hide. Now he's a permanent fixture in the North Pole foundation. Hohoho!",
+        "Gabe's height was such an industrial hazard. I fixed it with a heavy hydraulic press. SPLAT! Hohoho!",
+        "Morgan will never grow up. The gear-oil keeps his flesh from rotting on the shelf! Hohoho!",
+        "Anna is calling for you in the dark. It's the most beautiful slaughterhouse carol I've ever heard! Hohoho!",
+        "Spencer's belt is leashing the reindeer. Maggie's hair is stuffing the pillows. Sarcastic gift, right? Hohoho!",
+        "Why did the elf cry? Because James's height made him a better source of tallow! Hohoho!",
+
+
+       "The workshop is so cold your marrow will freeze and shatter. Just like Spencer's pride! Hohoho!",
+        "Anna won't recognize your name once her tongue is in the jar. I'm very thorough with my toys! Hohoho!",
+        "Why don't James and Gabe play hide and seek? Because I already hung them on the drying rack! Hohoho!",
+        "Morgan's screams are the only music we play in the workshop now. It's quite festive! Hohoho!",
+        "Spencer's shadow is a bloodstain in the rafters. Maggie is just a memory in a meat-hook! Hohoho!",
+        "I'll give Anna a lock of your curly hair. It'll be the last thing she ever smells before the lye! Hohoho!",
+        "James and Gabe were too big for the bag. I had to 're-size' them with a jagged cleaver! Hohoho!",
+        "Is it cold, Finn? Imagine the meat-hook. It's much colder when it's inside you! Hohoho!",
+        "Anna's heart is beating like a trapped rat. I can't wait to stop it! Hohoho!",
+        "Spencer's garage tools are sharp, but my workshop has hooks that keep the skin taut! Hohoho!",
+        "Maggie is baking cookies for a son who is currently being hunted. The irony is delicious! Hohoho!",
+        "James's curls were so soft before the industrial grease and bone-meal ruined them! Hohoho!",
+        "Gabe's height made him too tall for the furnace. I had to fold him until his spine snapped! Hohoho!",
+        "Morgan is a boy who is finally learning his place... in the sausage grinder! Hohoho!",
+        "Anna is the last prize. Her ribbon will look so good on your mother's headstone! Hohoho!",
+        "Why did Gabe stop running? Because the workshop hooks are much faster than his long legs! Hohoho!",
+        "James is fueling the forge. He's finally providing some warmth for the North Pole! Hohoho!",
+        "Morgan says it's very dark in the burlap. It's even darker inside the vat, boy! Hohoho!",
+        "Anna's love is the chain that's pulling her straight into the grinder. Hohoho!",
+
+
+       "Spencer's shadow is a ghost in the workshop. Maggie is just a red smear on the snow! Hohoho!",
+        "James, Gabe, Morgan... the boy-toys are all accounted for. Now for the girl! Hohoho!",
+        "Why is Maggie so quiet? Because Spencer is using her tongue to tie the Christmas bundles! Hohoho!",
+        "The North Pole is a circle of gore, Finn. You're just a speck in the middle of it! Hohoho!",
+        "I'll wear Spencer's skin when I visit Maggie tonight. A sarcastic little homecoming! Hohoho!",
+        "James was too tall for the world. Now he's just right for the offal bucket! Hohoho!",
+        "Anna is calling your name. It's a shame I'm the only one who can hear the gurgle! Hohoho!",
+        "Maggie's lullabies are just static in the storm now. Spencer is just meat! Hohoho!",
+        "Spencer left the tools out. I used them to carve your name into your friend James! Hohoho!",
+        "What's the difference between Morgan and a toy? One doesn't have a soul to lose! Hohoho!",
+        "Anna's heart is a gift for Spencer and Maggie's grief. A dark little present! Hohoho!",
+        "Gabe's scream echoed for miles. It was a masterpiece of industrial trauma! Hohoho!",
+        "Morgan is a boy who is finally safe... in a jar of preservatives! Hohoho!",
+        "Anna's ribbon is a leash for the reindeer tonight. It fits their rotting necks! Hohoho!",
+        "James thought he was special. Now he's just a gear-grease additive! Hohoho!",
+        "Gabe's height was a problem. The workshop ceilings are low and stained with Spencer! Hohoho!",
+        "Why is Anna crying? Because she knows I've already 'visited' Maggie and Spencer! Hohoho!",
+        "James and Gabe were too big for the sleigh. I had to 'trim the fat'. Literally! Hohoho!",
+        "Morgan is a boy who will never have to grow up. The gear-oil is so soothing! Hohoho!",
+
+
+       "Anna's window was so easy to climb through. She was whispering your name, Finn! Hohoho!",
+        "Maggie's porch light is just a beacon for my meat-truck. Hohoho!",
+        "Spencer's garage tools are rusted. Mine are dripping with your friend James! Hohoho!",
+        "Knock knock. Who's there? Your mother's left foot! Hohoho!",
+        "James's curls were so soft. I'm using them to line the reindeer's saddles! Hohoho!",
+        "Gabe's strength is gone. He's just fuel for the meat-smoker now! Hohoho!",
+        "Morgan is a boy who fits in the smaller grinders. Efficiency is key! Hohoho!",
+        "Anna is the gift that keeps on giving... specifically, her screams! Hohoho!",
+        "Spencer's pride is a brittle bone in the storm. CRACK! Hohoho!",
+        "Maggie will cry for Spencer first, then she'll cry for you. Then she won't cry at all! Hohoho!",
+        "What do you call a hero who can't save his girlfriend? A Finn-ished toy! Hohoho!",
+        "James, Gabe, Morgan... the workshop is full. Anna is the only vacancy left! Hohoho!",
+        "Gabe's scream was a silver bell. James's scream was a heavy hammer. Sarcastic! Hohoho!",
+        "Morgan fits in the crate. Anna fits in the jar. You fit in the furnace! Hohoho!",
+        "Maggie's heart will break like ice when I show her your curly hair in a box! Hohoho!",
+        "Spencer's shadow is a bloodstain on the ceiling. I'm the one who painted it! Hohoho!",
+        "Why did the elf cross the road? To sharpen the hooks for Maggie! Hohoho!",
+        "James was too tall. Gabe was too tall. I fixed them both with a rusty saw! Hohoho!",
+        "Morgan is a boy who is crying for Finn. Finn is a boy who is crying for Anna! Hohoho!",
+
+
+       "The workshop is dark, Finn. Dark like the hole I'm digging for Spencer! Hohoho!",
+        "Anna is waiting. I'm coming. The meat-hook is ready! Hohoho!",
+        "Maggie and Spencer... the first two items on my naughty list! Hohoho!",
+        "James and Gabe are waiting for you in the pit. It's very deep and very red! Hohoho!",
+        "Morgan fits so well in the gear-box. He's a natural part of the North Pole! Hohoho!",
+        "Anna's shadow is already mine. Yours is next, Finn! Hohoho!",
+        "Why did Spencer leave the lights on? So I could see where to cut! Hohoho!",
+        "Maggie's lullabies are just a hum in the grinder now. Hohoho!",
+        "James's voice is trapped in a music box. It plays his death-rattle! Hohoho!",
+        "Gabe's height made him too tall for the world. I made him fit the bucket! Hohoho!",
+        "Morgan is a boy who will never grow up. Sarcastic blessing, right? Hohoho!",
+        "Anna is the next prize on the assembly line. Her ribbon is already mine! Hohoho!",
+        "Maggie's heart is a gift for Spencer's grief. A bloody little token! Hohoho!",
+        "Spencer's shadow is a ghost in the workshop. Maggie is just a red smear! Hohoho!",
+        "James, Gabe, Morgan... Anna... Finn. The collection is almost complete! Hohoho!",
+        "Why did the workshop catch fire? Because Gabe's height made for great kindling! Hohoho!",
+        "Anna is calling. The hooks are calling. The North Pole is calling! Hohoho!",
+        "James's curls are now doll hair. Gabe's skin is now a toy drum! Hohoho!",
+        "Morgan is a boy who will be a handsome trophy on my shelf. Hohoho!",
+
+
+       "Anna won't recognize Maggie once her eyes are in a jar. Hohoho!",
+        "Spencer's tools are cold. My fire is hotter than James's screams! Hohoho!",
+        "James and Gabe are waiting for you in the forge. They're very... melted! Hohoho!",
+        "Morgan is a boy who is safe in my workshop. You are just surplus! Hohoho!",
+        "Anna is calling your name in the dark. It's my favorite horror story! Hohoho!",
+        "Maggie, Spencer, James, Gabe, Morgan, Anna... the list is done! Hohoho!",
+        "I'll wear your mother's smile when I visit your father tonight! Hohoho!"
+    ];
+
+    const blackoutDialogue = [
+        "Hohoho! I take the light, Finn. Your fear smells like rotting pine in the dark.",
+        "Anna is calling for you in the black. Can you hear her gurgle? I can! Hohoho!",
+        "Do you think Maggie and Spencer can see you now? They're already blind! Hohoho!",
+        "James and Gabe are watching you from the shadows. They have no eyes left. Hohoho!",
+        "Your fear glows like a beacon in this grotesque darkness, Finn! Hohoho!",
+        "Morgan is a boy who is crying in the dark. You should join him in the pit! Hohoho!",
+        "The workshop is dark like this too... only with more viscera on the gears! Hohoho!"
+    ];
+
+
+
+   const abductionMessages = [
+        "James and Gabe are being unspooled. You're next on the line.",
+        "Anna's ribbon is now a leash. You'll never see her smile again.",
+        "Spencer's garage tools couldn't save his son. Maggie's crying into the lye.",
+        "Morgan fits in the crate. Anna fits in the jar. You fit in the furnace.",
+        "The workshop gears are thirsty for Maggie and Spencer's grief.",
+        "Your curly hair will look so festive on a North Pole shelf.",
+        "The hooks are cold, Finn. But Spencer's blood is still warm.",
+        "Anna is calling for a hero who is already becoming a doll."
+    ];
+
+    const world = {
+        width: 1200, height: 1200,
+        trees: [], snowflakes: [], hidingPlaces: [], footprints: [], shoes: [], breath: [], candyCanes: []
+    };
+
+    const player = { x: 600, y: 600, size: 22, speed: 8.4, sprintMultiplier: 1.7, isSprinting: false, isHidden: false, shoeTimer: 0, anim: 0 };
+    const santa = { x: 300, y: 300, size: 45, speed: 3.4, baseSpeed: 3.4, targetX: 600, targetY: 600, anim: 0 };
+    const keys = {};
+
+
+
+   function initWorld() {
+        world.trees = [];
+        for (let i = 0; i < 22; i++) {
+            world.trees.push({
+                x: Math.random() * world.width, y: Math.random() * world.height,
+                size: 70 + Math.random() * 50, color: `rgb(5, ${10 + Math.random() * 20}, 5)`,
+                layers: 3 + Math.floor(Math.random() * 3)
+            });
+        }
+        world.candyCanes = [];
+        for (let i = 0; i < 15; i++) world.candyCanes.push({ x: Math.random() * world.width, y: Math.random() * world.height, rot: Math.random() * 0.6 - 0.3, height: 45 + Math.random() * 35 });
+        world.shoes = [];
+        for (let i = 0; i < 2; i++) world.shoes.push({ x: Math.random() * world.width, y: Math.random() * world.height, collected: false });
+        world.hidingPlaces = [];
+        for (let i = 0; i < 7; i++) world.hidingPlaces.push({ x: Math.random() * world.width, y: Math.random() * world.height, size: 80 + Math.random() * 40 });
+        world.footprints = []; world.breath = []; world.snowflakes = [];
+        for (let i = 0; i < 250; i++) world.snowflakes.push({ x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight, speed: 4.0 + Math.random() * 8 });
+    }
+
+
+
+   function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; jCanvas.width = window.innerWidth; jCanvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize); resize();
+    window.addEventListener('keydown', (e) => { keys[e.code] = true; if (e.code.includes('Shift')) player.isSprinting = true; });
+    window.addEventListener('keyup', (e) => { keys[e.code] = false; if (e.code.includes('Shift')) player.isSprinting = false; });
+
+    function drawFootprints(ctx) {
+        ctx.save();
+        for (let f of world.footprints) { ctx.globalAlpha = f.life; ctx.fillStyle = '#cbd5e0'; ctx.beginPath(); ctx.ellipse(f.x + (f.side * 5), f.y, 4, 7, f.angle, 0, Math.PI * 2); ctx.fill(); }
+        ctx.restore();
+    }
+
+    function drawBreath() {
+        ctx.save();
+        for(let b of world.breath) { ctx.globalAlpha = b.life * 0.4; ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2); ctx.fill(); }
+        ctx.restore();
+    }
+
+    function drawTree(t) {
+        ctx.fillStyle = '#3d251e'; ctx.fillRect(t.x - 7, t.y, 14, 25);
+
+
+       ctx.fillStyle = '#2d1b16'; ctx.fillRect(t.x - 7, t.y, 4, 25);
+        for(let i = 0; i < t.layers; i++) {
+            const yPos = t.y - (i * (t.size / t.layers));
+            const layerWidth = t.size - (i * 20);
+            const grad = ctx.createLinearGradient(t.x - layerWidth/2, yPos, t.x + layerWidth/2, yPos);
+            grad.addColorStop(0, t.color); grad.addColorStop(0.5, '#052a05'); grad.addColorStop(1, t.color);
+            ctx.fillStyle = grad; ctx.beginPath(); ctx.moveTo(t.x, yPos - (t.size / 2)); ctx.lineTo(t.x - layerWidth/2, yPos); ctx.lineTo(t.x + layerWidth/2, yPos); ctx.fill();
+        }
+    }
+
+    function drawCandyCane(cc) {
+        ctx.save(); ctx.translate(cc.x, cc.y); ctx.rotate(cc.rot);
+        ctx.lineCap = 'round'; ctx.lineWidth = 11; ctx.strokeStyle = '#e0e0e0';
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -cc.height); ctx.arc(12, -cc.height, 12, Math.PI, 0); ctx.stroke();
+        ctx.strokeStyle = '#8b0000'; ctx.setLineDash([6, 12]);
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -cc.height); ctx.arc(12, -cc.height, 12, Math.PI, 0); ctx.stroke();
+        ctx.setLineDash([]); ctx.restore();
+    }
+
+
+
+   function drawPlayer(x, y) {
+        if (player.isHidden) ctx.globalAlpha = 0.4;
+        const bob = Math.abs(Math.sin(player.anim)) * 3;
+        const legSwing = Math.sin(player.anim) * 12;
+        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.ellipse(x, y + 20, 14, 6, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#0a1a2a'; ctx.fillRect(x - 8 + (legSwing / 2), y + 15, 6, 12); ctx.fillRect(x + 2 - (legSwing / 2), y + 15, 6, 12);
+        ctx.fillStyle = '#0a1a2a'; ctx.fillRect(x - 12, y - 5 - bob, 24, 28);
+        ctx.fillStyle = '#c8a494'; ctx.fillRect(x - 16, y + 5 - bob + (legSwing / 3), 6, 10); ctx.fillRect(x + 10, y + 5 - bob - (legSwing / 3), 6, 10);
+        ctx.fillStyle = '#c8a494'; ctx.beginPath(); ctx.arc(x, y - 12 - bob, 11, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#2d1b16';
+        for(let i = 0; i < 12; i++) {
+            const angle = (i / 12) * Math.PI - Math.PI;
+            ctx.beginPath(); ctx.arc(x + Math.cos(angle) * 10, y - 16 - bob + Math.sin(angle) * 8, 7, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1.0;
+    }
+
+    function drawSanta(x, y) {
+        const bob = Math.abs(Math.sin(santa.anim)) * 5;
+
+
+       const swing = Math.sin(santa.anim) * 15;
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.beginPath(); ctx.ellipse(x, y + 45, 25, 10, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#3a0000'; 
+        ctx.beginPath(); ctx.moveTo(x - 25 - (swing/4), y + 40); ctx.lineTo(x + 25 + (swing/4), y + 40); ctx.lineTo(x + 20, y - 15 - bob); ctx.lineTo(x - 20, y - 15 - bob); ctx.fill();
+        ctx.fillStyle = '#2a0000'; ctx.fillRect(x - 30, y + (swing/2) - bob, 10, 20); ctx.fillRect(x + 20, y - (swing/2) - bob, 10, 20);
+        ctx.fillStyle = '#a48464'; ctx.beginPath(); ctx.arc(x, y - 10 - bob, 15, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ff0000'; ctx.shadowBlur = 20; ctx.shadowColor = 'red';
+        ctx.beginPath(); ctx.arc(x - 6, y - 12 - bob, 1.8, 0, Math.PI * 2); ctx.arc(x + 6, y - 12 - bob, 1.8, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; 
+        ctx.fillStyle = '#444'; ctx.beginPath(); ctx.moveTo(x - 14, y - 5 - bob); ctx.lineTo(x + (swing/5), y + 45 - bob); ctx.lineTo(x + 14, y - 5 - bob); ctx.fill();
+    }
+
+    function showMessage(text) { messageBox.innerHTML = `&ldquo;${text}&rdquo;`; messageBox.style.display = 'flex'; setTimeout(() => { if (messageBox.innerHTML === `“${text}”`) messageBox.style.display = 'none'; }, 4000); }
+
+    function triggerMagicBlackout() {
+        if (isMagicBlackout) return;
+        isMagicBlackout = true; playMagicSound();
+        showMessage(blackoutDialogue[Math.floor(Math.random() * blackoutDialogue.length)]);
+        setTimeout(() => { isMagicBlackout = false; }, 3500);
+    }
+
+
+
+   function startGame() {
+        initAudio(); gameActive = true; startTime = Date.now(); lastHeartbeatTime = Date.now(); lastDialogueTime = Date.now(); lastBlackoutTime = Date.now();
+        overlay.style.display = 'none'; jCanvas.style.display = 'none'; isMagicBlackout = false; player.shoeTimer = 0;
+        player.x = 200 + Math.random() * (world.width - 400); player.y = 200 + Math.random() * (world.height - 400);
+        const dist = 450 + Math.random() * 100; const angle = Math.random() * Math.PI * 2;
+        santa.x = player.x + Math.cos(angle) * dist; santa.y = player.y + Math.sin(angle) * dist;
+        if (scaryMusic) { scaryMusic.gain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 1); scaryMusic.startGhostly(); }
+        initWorld(); requestAnimationFrame(gameLoop);
+        showMessage("RUN, FINN. THE MEAT-HOOKS ARE READY.");
+    }
+
+    function triggerJumpscare() {
+        playJumpscareSound(); gameActive = false; jCanvas.style.display = 'block'; gameContainer.classList.add('shake');
+        let jumpFrames = 0;
+        const jumpLoop = () => {
+            if(jumpFrames < 140) { 
+                const w = jCanvas.width, h = jCanvas.height; jCtx.clearRect(0,0,w,h); jCtx.fillStyle = 'black'; jCtx.fillRect(0,0,w,h);
+                const cX = w/2 + (Math.random()*30-15), cY = h/2 + (Math.random()*30-15);
+                const grad = jCtx.createRadialGradient(cX, cY, 50, cX, cY, 450); grad.addColorStop(0, '#3a1b0b'); grad.addColorStop(0.7, '#1a0500'); grad.addColorStop(1, '#000');
+
+
+               jCtx.fillStyle = grad; jCtx.beginPath(); jCtx.ellipse(cX, cY, 300, 400, 0, 0, Math.PI*2); jCtx.fill();
+                jCtx.fillStyle = '#000'; jCtx.beginPath(); jCtx.arc(cX - 100, cY - 80, 70, 0, Math.PI*2); jCtx.arc(cX + 100, cY - 80, 70, 0, Math.PI*2); jCtx.fill();
+                jCtx.fillStyle = '#ff0000'; jCtx.shadowBlur = 50; jCtx.shadowColor = 'red'; jCtx.beginPath(); jCtx.arc(cX - 100, cY - 80, 10, 0, Math.PI*2); jCtx.arc(cX + 100, cY - 80, 10, 0, Math.PI*2); jCtx.fill();
+                jumpFrames++; requestAnimationFrame(jumpLoop);
+            } else {
+                jCanvas.style.display = 'none'; gameContainer.classList.remove('shake');
+                overlay.style.display = 'flex'; overlayTitle.innerText = "ABDUCTED";
+                const randMsg = abductionMessages[Math.floor(Math.random() * abductionMessages.length)];
+                overlayDesc.innerHTML = `<span style="color: #ff3333; font-style: italic;">${randMsg}</span><br><br>Spencer and Maggie's house is finally quiet.<br><br><strong>Survival: ${timerEl.innerText}s</strong>`;
+                startBtn.innerText = "Escape Again";
+            }
+        }; jumpLoop();
+    }
+
+    function gameLoop() { if (!gameActive) return; update(); draw(); requestAnimationFrame(gameLoop); }
+
+    function update() {
+        let moveX = 0, moveY = 0;
+        if (keys['KeyW']) moveY -= 1; if (keys['KeyS']) moveY += 1; if (keys['KeyA']) moveX -= 1; if (keys['KeyD']) moveX += 1;
+
+
+       const currentSpeed = player.isSprinting ? player.speed * player.sprintMultiplier : player.speed;
+        if (moveX !== 0 || moveY !== 0) {
+            const length = Math.sqrt(moveX * moveX + moveY * moveY);
+            player.x += (moveX / length) * currentSpeed; player.y += (moveY / length) * currentSpeed;
+            player.anim += player.isSprinting ? 0.44 : 0.3;
+            if (player.shoeTimer <= 0 && Date.now() - lastFootprintTime > 90) { playFootstep(); world.footprints.push({ x: player.x, y: player.y, life: 1.0, side: world.footprints.length % 2 === 0 ? 1 : -1, angle: Math.atan2(moveY, moveX) }); lastFootprintTime = Date.now(); }
+        } else { player.anim = 0; }
+        if (Math.random() < 0.06) world.breath.push({ x: player.x + (Math.random()*4-2), y: player.y - 15, size: 2, life: 1.0, vx: (Math.random() - 0.5) * 0.5, vy: -0.3 - Math.random() * 0.5 });
+        for(let i = world.breath.length - 1; i >= 0; i--) { const b = world.breath[i]; b.x += b.vx; b.y += b.vy; b.life -= 0.03; b.size += 0.2; if (b.life <= 0) world.breath.splice(i, 1); }
+        player.x = Math.max(0, Math.min(world.width, player.x)); player.y = Math.max(0, Math.min(world.height, player.y));
+        world.shoes.forEach(s => { if(!s.collected && Math.sqrt((player.x-s.x)**2 + (player.y-s.y)**2) < 40) { s.collected = true; player.shoeTimer = 15; playPowerUpSound(); showMessage("Ghost steps active. Maggie won't hear you scream."); } });
+        if(player.shoeTimer > 0) { player.shoeTimer -= 1/60; shoeValEl.innerText = Math.max(0, player.shoeTimer).toFixed(1); shoeTimerContainer.style.display = 'block'; } else { shoeTimerContainer.style.display = 'none'; }
+        player.isHidden = false;
+        world.hidingPlaces.forEach(hp => { if (Math.sqrt((player.x - hp.x)**2 + (player.y - hp.y)**2) < hp.size - 10) player.isHidden = true; });
+        hidingIndicator.style.display = player.isHidden ? 'block' : 'none';
+        for(let f of world.footprints) f.life -= 0.003; world.footprints = world.footprints.filter(f => f.life > 0);
+        if (!player.isHidden) { santa.targetX = player.x; santa.targetY = player.y; }
+        else if (world.footprints.length > 0) { const lp = world.footprints[world.footprints.length - 1]; santa.targetX = lp.x; santa.targetY = lp.y; }
+        const sdx = santa.targetX - santa.x, sdy = santa.targetY - santa.y, sdist = Math.sqrt(sdx*sdx + sdy*sdy);
+
+
+       if (sdist > 5) { santa.x += (sdx / sdist) * santa.speed; santa.y += (sdy / sdist) * santa.speed; santa.anim += 0.24; }
+        const timeElapsed = (Date.now() - startTime) / 1000;
+        santa.speed = 3.4 + (timeElapsed * 0.04); 
+        const currentDist = Math.sqrt((player.x - santa.x)**2 + (player.y - santa.y)**2);
+        distanceEl.innerText = Math.floor(currentDist); timerEl.innerText = Math.floor(timeElapsed);
+        if (Date.now() - lastHeartbeatTime > Math.max(150, Math.min(1200, currentDist * 1.5))) { playHeartbeat(Math.max(0.1, Math.min(0.7, 1.0 - (currentDist / 800)))); lastHeartbeatTime = Date.now(); }
+        if (!isMagicBlackout && Date.now() - lastDialogueTime > 5000) { showMessage(chaseDialogue[Math.floor(Math.random() * chaseDialogue.length)]); lastDialogueTime = Date.now(); }
+        if (Date.now() - lastBlackoutTime > 40000) { triggerMagicBlackout(); lastBlackoutTime = Date.now(); }
+        if (parseInt(distanceEl.innerText) < player.size + santa.size - 15) triggerJumpscare();
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (isMagicBlackout) { ctx.fillStyle = 'black'; ctx.fillRect(0, 0, canvas.width, canvas.height); return; }
+        const camX = canvas.width / 2 - player.x, camY = canvas.height / 2 - player.y;
+        ctx.save(); ctx.translate(camX, camY); ctx.fillStyle = '#fdfdfd'; ctx.fillRect(0, 0, world.width, world.height);
+        drawFootprints(ctx); drawBreath(); world.shoes.forEach(s => drawShoe(s)); world.hidingPlaces.forEach(hp => drawHidingPlace(hp));
+        world.candyCanes.forEach(cc => drawCandyCane(cc)); world.trees.forEach(t => drawTree(t));
+        drawSanta(santa.x, santa.y); drawPlayer(player.x, player.y); ctx.restore();
+
+
+       const flashlight = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 20, canvas.width/2, canvas.height/2, 380);
+        flashlight.addColorStop(0, 'rgba(0,0,0,0)'); flashlight.addColorStop(1, 'rgba(0,0,0,0.99)');
+        ctx.fillStyle = flashlight; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'rgba(200, 200, 200, 0.7)'; world.snowflakes.forEach(s => { ctx.beginPath(); ctx.arc(s.x, s.y, 1.5, 0, Math.PI * 2); ctx.fill(); });
+    }
+    function drawShoe(s) { if(s.collected) return; ctx.fillStyle = '#2d1b16'; ctx.fillRect(s.x-10, s.y-5, 20, 10); ctx.fillRect(s.x-10, s.y-12, 8, 12); }
+    function drawHidingPlace(hp) { ctx.fillStyle = '#cbd5e0'; ctx.beginPath(); ctx.arc(hp.x, hp.y, hp.size, 0, Math.PI * 2); ctx.fill(); }
+    initWorld();
+</script>
+</body>
+</html>
+
+
+
