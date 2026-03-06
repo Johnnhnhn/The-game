@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>James's School Day Survival</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --ui-panel: rgba(255, 255, 255, 0.95);
+            --james-color: #3e2723;
+            --accent-color: #1a73e8;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: var(--bg-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fff;
+            width: 800px;
+            height: 600px;
+        }
+
+        canvas {
+            display: block;
+            background-color: #e0e0e0;
+            cursor: crosshair;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 15px;
+            box-sizing: border-box;
+            pointer-events: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            z-index: 10;
+        }
+
+        .stat-box {
+            background: var(--ui-panel);
+            padding: 10px 18px;
+            border-radius: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-weight: bold;
+            color: #333;
+            pointer-events: auto;
+            min-width: 140px;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        #eating-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            background: var(--ui-panel);
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 15;
+        }
+
+        #eating-bar-bg {
+            width: 100%;
+            height: 20px;
+            background: #eee;
+            border-radius: 10px;
+            margin-top: 8px;
+            overflow: hidden;
+            border: 1px solid #ccc;
+        }
+
+        #eating-bar {
+            height: 100%;
+            width: 0%;
+            background: #4caf50;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal {
+            background: white;
+            padding: 35px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+
+        .quiz-option {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: left;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .quiz-option:hover { 
+            background: #eef5ff; 
+            border-color: var(--accent-color); 
+            transform: translateX(5px);
+        }
+
+        button {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+
+        @keyframes jamesDance {
+            0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+            25% { transform: translateY(-30px) rotate(-10deg) scale(1.1); }
+            50% { transform: translateY(0) rotate(10deg) scale(1); }
+            75% { transform: translateY(-30px) rotate(5deg) scale(1.1); }
+        }
+
+        .victory-james {
+            width: 60px;
+            height: 110px;
+            margin: 20px auto;
+            position: relative;
+            animation: jamesDance 1s infinite ease-in-out;
+        }
+
+        #d-pad {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            display: none;
+            grid-template-columns: repeat(3, 55px);
+            grid-template-rows: repeat(3, 55px);
+            gap: 8px;
+            pointer-events: auto;
+            z-index: 20;
+        }
+
+        .d-btn {
+            background: rgba(0,0,0,0.4);
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            user-select: none;
+        }
+
+        @media (max-width: 800px) {
+            #d-pad { display: grid; }
+            #game-container { width: 100vw; height: 100vh; border-radius: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="ui-layer">
+            <div>
+                <div class="stat-box" id="level-display">1st: AP EURO</div>
+            </div>
+            <div>
+                <div class="stat-box" id="pencil-display">Pencils: 0</div>
+                <div class="stat-box" id="objective-hint" style="margin-top: 10px; font-size: 12px; color: #d32f2f;">Find Gabe!</div>
+            </div>
+        </div>
+
+        <div id="eating-container">
+            <div style="font-weight: bold; color: #333;">Eating Lunch...</div>
+            <div id="eating-bar-bg"><div id="eating-bar"></div></div>
+            <div style="font-size: 11px; color: #d32f2f; margin-top: 5px;">CLICK to defend your backpack!</div>
+        </div>
+
+        <div id="overlay">
+            <div class="modal" id="modal-content">
+                <h2 id="modal-title">James's School Day</h2>
+                <div id="modal-body">Time to survive 10th grade.</div>
+                <button id="modal-btn">Start Game</button>
+            </div>
+        </div>
+
+        <div id="d-pad">
+            <div style="grid-column: 2" class="d-btn" id="up-btn">▲</div>
+            <div style="grid-column: 1; grid-row: 2" class="d-btn" id="left-btn">◀</div>
+            <div style="grid-column: 3; grid-row: 2" class="d-btn" id="right-btn">▶</div>
+            <div style="grid-column: 2; grid-row: 3" class="d-btn" id="down-btn">▼</div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const overlay = document.getElementById('overlay');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+        const modalBtn = document.getElementById('modal-btn');
+        const hintDisplay = document.getElementById('objective-hint');
+        const eatingContainer = document.getElementById('eating-container');
+        const eatingBar = document.getElementById('eating-bar');
+
+        const CONFIG = {
+            viewW: 800,
+            viewH: 600,
+            worldW: 1200,
+            worldH: 900,
+            wallWidth: 20,
+            jamesSize: { w: 30, h: 55 },
+            carSize: { w: 60, h: 35 }, 
+            speed: 6,
+            carSpeed: 8,
+            friendSpeed: 3.2,
+            chaseSpeed: 4.5,
+            deskSize: { w: 60, h: 45 },
+            tableSize: { w: 100, h: 45 },
+            riserSize: { w: 400, h: 60 },
+            defendDuration: 500 
+        };
+
+        const PERIODS = [
+            { name: "1st: AP EURO", type: "quiz", challenge: "Renaissance Pop Quiz", question: "Who painted the Sistine Chapel ceiling?", options: ["Michelangelo", "Da Vinci", "Raphael", "Donatello"], correct: 0 },
+            { name: "2nd: DRIVERS ED", type: "driving", challenge: "Drive to the Finish Line!", cones: 20 },
+            { name: "3rd: ENGLISH", type: "quiz", challenge: "Literature Quiz", question: "Who wrote 'Romeo and Juliet'?", options: ["William Shakespeare", "Charles Dickens", "Mark Twain", "Jane Austen"], correct: 0 },
+            { name: "4th: CHEMISTRY", type: "quiz", acid: true, challenge: "Elements Quiz", question: "What is the chemical symbol for Gold?", options: ["Au", "Ag", "Pb", "Fe"], correct: 0 },
+            { name: "LUNCH", type: "swarm", challenge: "Cafeteria Madness - Get Food and Eat!" },
+            { name: "5th: SPANISH", type: "quiz", challenge: "Vocabulary Quiz", question: "How do you say 'Hello' in Spanish?", options: ["Hola", "Bonjour", "Ciao", "Hallo"], correct: 0 },
+            { name: "6th: CHOIR", type: "quiz", risers: true, challenge: "Music Theory Quiz", question: "Which of these is a female voice type?", options: ["Soprano", "Guitar", "Piano", "Drum"], correct: 0 },
+            { name: "7th: ALGEBRA 2", type: "quiz", challenge: "Discriminant Quiz", question: "What is the discriminant formula?", options: ["b² - 4ac", "-b / 2a", "y = mx + b", "a² + b²"], correct: 0 },
+            { name: "8th: THEOLOGY", type: "quiz", challenge: "Faith Studies Quiz", question: "What is the study of religious faith and practice?", options: ["Theology", "Biology", "Geology", "Sociology"], correct: 0 }
+        ];
+
+        const FRIEND_PROPS = [
+            { name: "Morgan", shirt: "#ffffff", hair: "#5d4037", hMod: -4 },
+            { name: "Finn", shirt: "#ffffff", hair: "#fdd835", hMod: 2 },
+            { name: "Zach", shirt: "#ffffff", hair: "#212121", hMod: -2 },
+            { name: "Jacob", shirt: "#ffffff", hair: "#ffb300", hMod: 5 },
+            { name: "Kolbe", shirt: "#ffffff", hair: "#3e2723", hMod: -6 },
+            { name: "Walker", shirt: "#ffffff", hair: "#795548", hMod: 3 },
+            { name: "Jake", shirt: "#ffffff", hair: "#263238", hMod: 0 }
+        ];
+
+        let state = {
+            level: 0,
+            hasPencil: false,
+            hasBackpack: true,
+            isEating: false,
+            eatingProgress: 0,
+            lastDefend: 0,
+            thief: null, 
+            backpackThief: null,
+            isPlaying: false,
+            quizPassed: false,
+            keys: {},
+            camera: { x: 0, y: 0 },
+            james: { x: 100, y: 100, anim: 0, isWalking: false, hair: "#3e2723" },
+            gabe: { x: 0, y: 0, hair: "#ffeb3b", curly: true },
+            desks: [],
+            targetDeskIndex: -1,
+            friends: [],
+            hazards: [],
+            finishLine: { x: 0, y: 0, w: 100, h: 200 }
+        };
+
+        // Audio System
+        let audioCtx = null;
+        let isBgmPlaying = false;
+
+        function startBgm() {
+            if (isBgmPlaying) return;
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            isBgmPlaying = true;
+            
+            const playNote = (freq, time, type = 'square', gainVal = 0.05) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, time);
+                gain.gain.setValueAtTime(gainVal, time);
+                gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.1);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(time);
+                osc.stop(time + 0.1);
+            };
+
+            const loop = () => {
+                if (!state.isPlaying || state.level >= PERIODS.length) {
+                    setTimeout(loop, 1000);
+                    return;
+                }
+                let now = audioCtx.currentTime;
+                for (let i = 0; i < 4; i++) {
+                    playNote(110, now + i * 0.25, 'triangle', 0.1); 
+                    if (i % 2 === 0) playNote(440, now + i * 0.25, 'square', 0.03); 
+                }
+                setTimeout(loop, 1000);
+            };
+            loop();
+        }
+
+        function playVictorySound() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const melody = [
+                { f: 523.25, d: 0.1 }, { f: 523.25, d: 0.1 }, { f: 523.25, d: 0.1 }, 
+                { f: 659.25, d: 0.2 }, { f: 783.99, d: 0.2 }, { f: 1046.50, d: 0.5 }
+            ];
+            let time = audioCtx.currentTime;
+            melody.forEach(note => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(note.f, time);
+                gain.gain.setValueAtTime(0.1, time);
+                gain.gain.exponentialRampToValueAtTime(0.0001, time + note.d);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(time);
+                osc.stop(time + note.d);
+                time += note.d + 0.05;
+            });
+        }
+
+        function drawCharacter(ctx, x, y, char, bob, legOff) {
+            const hMod = char.hMod || 0;
+            const shirtCol = "#ffffff";
+            const emblemCol = "#d32f2f";
+            const skinCol = "#ffdbac";
+
+            // Arms
+            ctx.fillStyle = skinCol;
+            ctx.fillRect(x - 8, y + 25 + bob, 8, 20); 
+            ctx.fillRect(x + 26, y + 25 + bob, 8, 20); 
+
+            // Legs
+            ctx.fillStyle = "#212121";
+            ctx.fillRect(x + 4, y + 45 + hMod + legOff, 7, 10);
+            ctx.fillRect(x + 15, y + 45 + hMod - legOff, 7, 10);
+
+            // Shirt (Uniform)
+            ctx.fillStyle = shirtCol;
+            ctx.fillRect(x, y + 25 + bob, 26, 25 + hMod);
+            
+            // Emblem (Top Right Area)
+            ctx.fillStyle = emblemCol;
+            ctx.fillRect(x + 18, y + 28 + bob, 4, 4);
+
+            // Head
+            ctx.fillStyle = skinCol;
+            ctx.fillRect(x + 4, y + 10 + bob, 18, 15);
+            
+            // Eyes
+            ctx.fillStyle = "#000";
+            ctx.beginPath(); ctx.arc(x + 9, y + 17 + bob, 1.5, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(x + 17, y + 17 + bob, 1.5, 0, Math.PI*2); ctx.fill();
+
+            // Hair
+            ctx.fillStyle = char.hair;
+            if (char.curly) {
+                for(let i=0; i<5; i++) { ctx.beginPath(); ctx.arc(x + 4 + i*4, y + 8 + bob, 6, 0, Math.PI*2); ctx.fill(); }
+            } else {
+                ctx.fillRect(x + 4, y + bob, 18, 10);
+            }
+        }
+
+        function init() {
+            canvas.width = CONFIG.viewW;
+            canvas.height = CONFIG.viewH;
+            
+            window.addEventListener('keydown', e => state.keys[e.key.toLowerCase()] = true);
+            window.addEventListener('keyup', e => state.keys[e.key.toLowerCase()] = false);
+            
+            canvas.onmousedown = (e) => {
+                if (state.isPlaying) state.lastDefend = Date.now();
+                if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            };
+
+            const touch = (id, k) => {
+                const b = document.getElementById(id);
+                if(!b) return;
+                b.onpointerdown = (e) => { e.preventDefault(); state.keys[k] = true; };
+                b.onpointerup = (e) => { e.preventDefault(); state.keys[k] = false; };
+            };
+            touch('up-btn', 'arrowup'); touch('down-btn', 'arrowdown');
+            touch('left-btn', 'arrowleft'); touch('right-btn', 'arrowright');
+
+            modalBtn.onclick = () => {
+                startBgm();
+                startLevel();
+            };
+            showModal("James's School Journey", "All students are in uniform today. Use the energetic vibe to finish your periods! Watch for thieves.", "Begin 1st Period");
+        }
+
+        function showModal(title, bodyText, btnText, isQuiz = false, isVictory = false) {
+            state.isPlaying = false;
+            overlay.style.display = 'flex';
+            modalTitle.innerText = title;
+            eatingContainer.style.display = 'none';
+            
+            if (isVictory) {
+                playVictorySound();
+                modalBody.innerHTML = `
+                    <p>James survived the 10th grade!</p>
+                    <div class="victory-james">
+                        <div style="background:#3e2723; width:40px; height:24px; position:absolute; top:0; left:10px; border-radius:10px 10px 0 0"></div>
+                        <div style="background:#ffdbac; width:40px; height:36px; position:absolute; top:24px; left:10px"></div>
+                        <div style="background:#ffffff; width:60px; height:50px; position:absolute; top:60px; left:0"></div>
+                        <div style="background:red; width:6px; height:6px; position:absolute; top:65px; left:45px"></div>
+                        <div style="background:#212121; width:15px; height:20px; position:absolute; top:110px; left:5px"></div>
+                        <div style="background:#212121; width:15px; height:20px; position:absolute; top:110px; left:40px"></div>
+                    </div>
+                `;
+                modalBtn.innerText = "Restart Year";
+            } else if (isQuiz) {
+                const p = PERIODS[state.level];
+                modalBody.innerHTML = `<p style='color:#666'>${p.challenge}</p><h3 style='margin:15px 0'>${p.question}</h3>`;
+                p.options.forEach((opt, i) => {
+                    const b = document.createElement('div');
+                    b.className = 'quiz-option';
+                    b.innerText = opt;
+                    b.onclick = () => {
+                        if (i === p.correct) {
+                            state.quizPassed = true;
+                            overlay.style.display = 'none';
+                            state.isPlaying = true;
+                            requestAnimationFrame(gameLoop);
+                        } else {
+                            showModal("Wrong!", "Try again!", "Retry", true);
+                        }
+                    };
+                    modalBody.appendChild(b);
+                });
+                modalBtn.style.display = 'none';
+            } else {
+                modalBody.innerHTML = `<p>${bodyText}</p>`;
+                modalBtn.innerText = btnText;
+                modalBtn.style.display = 'inline-block';
+            }
+        }
+
+        function createDesks() {
+            state.desks = [];
+            const p = PERIODS[state.level];
+            if (p.type === "driving") return;
+            const isLunch = p.name === "LUNCH";
+            
+            if (p.risers) {
+                const numRisers = 3;
+                const startX = (CONFIG.worldW - CONFIG.riserSize.w) / 2;
+                const startY = (CONFIG.worldH - (numRisers * 120)) / 2;
+                for (let i = 0; i < numRisers; i++) {
+                    state.desks.push({ x: startX, y: startY + i * 120, w: CONFIG.riserSize.w, h: CONFIG.riserSize.h, isRiser: true, riserIndex: i });
+                }
+                state.targetDeskIndex = Math.floor(Math.random() * numRisers);
+            } else {
+                const rows = 3, cols = 4, spacingX = isLunch ? 180 : 120, spacingY = 120;
+                const objW = isLunch ? CONFIG.tableSize.w : CONFIG.deskSize.w, objH = isLunch ? CONFIG.tableSize.h : CONFIG.deskSize.h;
+                const startX = (CONFIG.worldW - (cols*spacingX))/2 + 60, startY = (CONFIG.worldH - (rows*spacingY))/2 + 60;
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        state.desks.push({ x: startX + c * spacingX, y: startY + r * spacingY, w: objW, h: objH });
+                    }
+                }
+                state.targetDeskIndex = Math.floor(Math.random() * state.desks.length);
+            }
+        }
+
+        function startLevel() {
+            overlay.style.display = 'none';
+            state.isPlaying = true;
+            state.hasPencil = false;
+            state.hasBackpack = true;
+            state.isEating = false;
+            state.eatingProgress = 0;
+            state.thief = null;
+            state.backpackThief = null;
+            const p = PERIODS[state.level];
+            state.quizPassed = (p.type !== "quiz");
+            
+            state.james = { x: 80, y: 80, anim: 0, isWalking: false, hair: "#3e2723" };
+            state.hazards = []; state.friends = []; state.desks = [];
+
+            if (p.type === "driving") {
+                state.finishLine = { x: CONFIG.worldW - 150, y: CONFIG.worldH / 2 - 100, w: 40, h: 200 };
+                for(let i=0; i<p.cones; i++) state.hazards.push({ x: 200 + Math.random() * (CONFIG.worldW - 400), y: 100 + Math.random() * (CONFIG.worldH - 200), type: 'cone' });
+            } else {
+                state.gabe = { x: 200 + Math.random() * 800, y: 100 + Math.random() * 200, hair: "#ffeb3b", curly: true };
+                createDesks();
+                state.friends = FRIEND_PROPS.map(pr => ({
+                    ...pr,
+                    x: Math.random() * (CONFIG.worldW - 100), y: Math.random() * (CONFIG.worldH - 100),
+                    vx: (Math.random() - 0.5) * CONFIG.friendSpeed, vy: (Math.random() - 0.5) * CONFIG.friendSpeed,
+                    anim: Math.random() * 10, state: "wandering", chaseTimer: 0, cooldown: 0
+                }));
+                if (p.acid) for(let i=0; i<8; i++) state.hazards.push({ x: Math.random() * CONFIG.worldW, y: Math.random() * CONFIG.worldH, type: 'acid' });
+            }
+            
+            document.getElementById('level-display').innerText = p.name;
+            document.getElementById('pencil-display').innerText = p.type === "driving" ? "---" : (p.name === "LUNCH" ? "Food: 0" : "Pencils: 0");
+            requestAnimationFrame(gameLoop);
+        }
+
+        function checkCollision(obj1, obj2) {
+            const isDriving = PERIODS[state.level].type === "driving";
+            const w1 = isDriving ? CONFIG.carSize.w : CONFIG.jamesSize.w, h1 = isDriving ? CONFIG.carSize.h : CONFIG.jamesSize.h;
+            return obj1.x < obj2.x + obj2.w && obj1.x + w1 > obj2.x && obj1.y < obj2.y + obj2.h && obj1.y + h1 > obj2.y;
+        }
+
+        function update() {
+            if (!state.isPlaying) return;
+            if (!state.quizPassed) { showModal("POP QUIZ!", "", "", true); return; }
+
+            const p = PERIODS[state.level], isLunch = p.name === "LUNCH", j = state.james, oldPos = { x: j.x, y: j.y };
+            const currentSpeed = p.type === "driving" ? CONFIG.carSpeed : CONFIG.speed;
+            const now = Date.now(), isDefending = (now - state.lastDefend < CONFIG.defendDuration);
+
+            j.isWalking = false;
+            if (state.keys['w'] || state.keys['arrowup']) { j.y -= currentSpeed; j.isWalking = true; state.isEating = false; }
+            if (state.keys['s'] || state.keys['arrowdown']) { j.y += currentSpeed; j.isWalking = true; state.isEating = false; }
+            if (state.keys['a'] || state.keys['arrowleft']) { j.x -= currentSpeed; j.isWalking = true; state.isEating = false; }
+            if (state.keys['d'] || state.keys['arrowright']) { j.x += currentSpeed; j.isWalking = true; state.isEating = false; }
+            if (j.isWalking) j.anim += 0.22;
+
+            j.x = Math.max(CONFIG.wallWidth, Math.min(CONFIG.worldW - (p.type === "driving" ? CONFIG.carSize.w : CONFIG.jamesSize.w) - CONFIG.wallWidth, j.x));
+            j.y = Math.max(CONFIG.wallWidth, Math.min(CONFIG.worldH - (p.type === "driving" ? CONFIG.carSize.h : CONFIG.jamesSize.h) - CONFIG.wallWidth, j.y));
+
+            state.camera.x = Math.max(0, Math.min(CONFIG.worldW - CONFIG.viewW, j.x - CONFIG.viewW / 2));
+            state.camera.y = Math.max(0, Math.min(CONFIG.worldH - CONFIG.viewH, j.y - CONFIG.viewH / 2));
+
+            if (p.type === "driving" && checkCollision(j, state.finishLine)) { levelUp(); return; }
+
+            if (state.isEating && state.hasBackpack) {
+                state.eatingProgress += 0.25; eatingContainer.style.display = 'block'; eatingBar.style.width = state.eatingProgress + '%';
+                if (state.eatingProgress >= 100) { levelUp(); return; }
+            } else eatingContainer.style.display = 'none';
+
+            state.desks.forEach((obj, idx) => {
+                if (checkCollision(j, obj)) {
+                    if (idx === state.targetDeskIndex && state.hasPencil) { if (isLunch) state.isEating = true; else levelUp(); } 
+                    else if (!obj.isRiser) { j.x = oldPos.x; j.y = oldPos.y; }
+                }
+            });
+
+            state.friends.forEach(f => {
+                const dist = Math.hypot(j.x - f.x, j.y - f.y);
+                if (f.cooldown > 0) f.cooldown--;
+                const canSee = (state.hasPencil || (isLunch && !state.hasBackpack));
+                if (f.state === "wandering") {
+                    if (canSee && f.cooldown <= 0 && dist < 260 && Math.random() < 0.012) { f.state = "chasing"; f.chaseTimer = 220; }
+                    f.x += f.vx; f.y += f.vy;
+                } else if (f.state === "chasing") {
+                    const angle = Math.atan2(j.y - f.y, j.x - f.x);
+                    const isThief = (state.thief === f || state.backpackThief === f);
+                    const mult = (isThief && dist < 150) ? -1.1 : 1; 
+                    f.x += Math.cos(angle) * CONFIG.chaseSpeed * mult; f.y += Math.sin(angle) * CONFIG.chaseSpeed * mult;
+                    if (!isThief && !canSee) f.state = "wandering";
+                    if (--f.chaseTimer <= 0) f.state = "wandering";
+                }
+                if (state.thief === f || state.backpackThief === f) {
+                    f.x = Math.max(state.camera.x + 10, Math.min(state.camera.x + CONFIG.viewW - 40, f.x));
+                    f.y = Math.max(state.camera.y + 10, Math.min(state.camera.y + CONFIG.viewH - 60, f.y));
+                }
+                if (f.x < CONFIG.wallWidth || f.x > CONFIG.worldW - CONFIG.wallWidth) f.vx *= -1;
+                if (f.y < CONFIG.wallWidth || f.y > CONFIG.worldH - CONFIG.wallWidth) f.vy *= -1;
+                if (p.type !== "driving" && dist < 50) {
+                    if (isDefending) {
+                        f.state = "wandering"; f.cooldown = 180;
+                        const a = Math.atan2(f.y - j.y, f.x - j.x); f.x += Math.cos(a) * 80; f.y += Math.sin(a) * 80;
+                    } else if (f.cooldown <= 0) {
+                        if (state.hasPencil && !state.thief) { state.hasPencil = false; state.thief = f; f.state = "chasing"; f.chaseTimer = 600; } 
+                        else if (isLunch && state.isEating && state.hasBackpack && !state.backpackThief) { state.hasBackpack = false; state.backpackThief = f; f.state = "chasing"; f.chaseTimer = 600; }
+                    }
+                }
+                if ((state.thief === f || state.backpackThief === f) && dist < 45) {
+                    if (state.thief === f) { state.thief = null; state.hasPencil = true; } else { state.backpackThief = null; state.hasBackpack = true; }
+                    f.state = "wandering"; f.cooldown = 120;
+                }
+                f.anim += 0.15;
+            });
+
+            state.hazards.forEach(h => {
+                if (h.type === 'cone' && Math.hypot(j.x - h.x, j.y - h.y) < 40) { j.x = oldPos.x; j.y = oldPos.y; }
+                if (h.type === 'acid' && Math.hypot(j.x - h.x, j.y - h.y) < 45) { state.isPlaying = false; showModal("Oops!", "Acid spill!", "Restart"); }
+            });
+
+            if (p.type !== "driving" && !state.hasPencil && !state.thief && Math.hypot(j.x - state.gabe.x, j.y - state.gabe.y) < 55) {
+                state.hasPencil = true;
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, CONFIG.viewW, CONFIG.viewH);
+            const p = PERIODS[state.level], isLunch = p.name === "LUNCH", now = Date.now(), isDefending = (now - state.lastDefend < CONFIG.defendDuration);
+            ctx.save(); ctx.translate(-state.camera.x, -state.camera.y);
+
+            if (p.type === "driving") { ctx.fillStyle = "#555"; ctx.fillRect(0, 0, CONFIG.worldW, CONFIG.worldH); } 
+            else {
+                ctx.fillStyle = isLunch ? "#d7b28a" : "#c19a6b"; ctx.fillRect(0, 0, CONFIG.worldW, CONFIG.worldH);
+                ctx.strokeStyle = isLunch ? "#a67c52" : "#8b5a2b"; for(let y=0; y<CONFIG.worldH; y+=50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CONFIG.worldW, y); ctx.stroke(); }
+            }
+            ctx.fillStyle = p.type === "driving" ? "#333" : "#8d6e63";
+            ctx.fillRect(0, 0, CONFIG.worldW, CONFIG.wallWidth); ctx.fillRect(0, CONFIG.worldH - CONFIG.wallWidth, CONFIG.worldW, CONFIG.wallWidth);
+            ctx.fillRect(0, 0, CONFIG.wallWidth, CONFIG.worldH); ctx.fillRect(CONFIG.worldW - CONFIG.wallWidth, 0, CONFIG.wallWidth, CONFIG.worldH);
+
+            state.hazards.forEach(h => {
+                if (h.type === 'cone') { ctx.fillStyle = "#ff9800"; ctx.beginPath(); ctx.moveTo(h.x, h.y-25); ctx.lineTo(h.x-20, h.y+20); ctx.lineTo(h.x+20, h.y+20); ctx.fill(); }
+                else if (h.type === 'acid') { ctx.fillStyle = "rgba(156, 39, 176, 0.6)"; ctx.beginPath(); ctx.arc(h.x, h.y, 25, 0, Math.PI*2); ctx.fill(); }
+            });
+
+            state.desks.forEach((obj, idx) => {
+                const isTarget = idx === state.targetDeskIndex;
+                ctx.fillStyle = (isTarget && state.hasPencil) ? "#4caf50" : (obj.isRiser ? "#757575" : (isLunch ? "#9e9e9e" : "#5d4037"));
+                ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
+                if (obj.isRiser) { ctx.strokeStyle = "#424242"; ctx.lineWidth = 4; ctx.strokeRect(obj.x, obj.y, obj.w, obj.h); }
+            });
+
+            if (p.type !== "driving" && !state.hasPencil && !state.thief) {
+                drawCharacter(ctx, state.gabe.x, state.gabe.y, state.gabe, 0, 0);
+                if (isLunch) { ctx.fillStyle = "#9e9e9e"; ctx.fillRect(state.gabe.x + 22, state.gabe.y + 25, 18, 12); } 
+                else { ctx.fillStyle = "#fdd835"; ctx.fillRect(state.gabe.x + 22, state.gabe.y + 35, 12, 4); }
+                ctx.fillStyle = "black"; ctx.font = "bold 12px sans-serif"; ctx.fillText("GABE", state.gabe.x-5, state.gabe.y-10);
+            }
+            
+            if (p.type !== "driving") {
+                state.friends.forEach(f => {
+                    const bob = Math.sin(f.anim) * 3, leg = Math.cos(f.anim) * 5;
+                    drawCharacter(ctx, f.x, f.y, f, bob, leg);
+                    if (state.thief === f || state.backpackThief === f) {
+                        ctx.fillStyle = "red"; ctx.font = "bold 14px sans-serif"; ctx.fillText("THIEF!", f.x, f.y - 45 + bob);
+                    }
+                    ctx.fillStyle = "#333"; ctx.font = "bold 11px sans-serif"; ctx.fillText(f.name, f.x-5, f.y-10 + bob);
+                });
+            }
+
+            const j = state.james;
+            if (p.type === "driving") { ctx.fillStyle = "#d32f2f"; ctx.fillRect(j.x, j.y, CONFIG.carSize.w, CONFIG.carSize.h); } 
+            else {
+                const bob = Math.sin(j.anim) * 4, leg = Math.cos(j.anim) * 6;
+                if (isDefending) { ctx.strokeStyle = "rgba(26, 115, 232, 0.4)"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(j.x + 15, j.y + 30, 60, 0, Math.PI*2); ctx.stroke(); }
+                if (state.hasBackpack) { ctx.fillStyle = "#1565c0"; ctx.fillRect(j.x - 5, j.y + 25 + bob, 15, 25); }
+                drawCharacter(ctx, j.x, j.y, j, bob, leg);
+                if (state.hasPencil) { ctx.fillStyle = isLunch ? "#9e9e9e" : "#fdd835"; ctx.fillRect(j.x + 22, j.y + 35 + bob, 18, 10); }
+                ctx.fillStyle = "black"; ctx.font = "bold 13px sans-serif"; ctx.fillText("James (6'1)", j.x-10, j.y-10 + bob);
+            }
+            ctx.restore();
+        }
+
+        function levelUp() {
+            state.isPlaying = false; state.level++;
+            if (state.level >= PERIODS.length) { showModal("Graduation Day!", "", "Restart Year", false, true); state.level = 0; } 
+            else { showModal("Bell Rang!", `Next: ${PERIODS[state.level].name}`, "Enter Classroom"); }
+        }
+
+        function gameLoop() { update(); draw(); if (state.isPlaying) requestAnimationFrame(gameLoop); }
+        init();
+    </script>
+</body>
+</html>
